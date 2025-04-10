@@ -1,0 +1,13 @@
+# requirements.txt
+streamlit
+langchain
+langchain-openai
+faiss-cpu
+pypdf # We switched to this from pypdf2
+sentence-transformers
+openai # Base client needed for Vision API call
+pillow # For image processing
+pandas
+st-aggrid # For the interactive table
+python-dotenv # Needed locally, but use Streamlit secrets in cloud
+# Make sure pytesseract is NOT listed here - it requires system install

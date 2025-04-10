@@ -1,0 +1,27 @@
+# In your expense-analyzer directory
+# Environment / Secrets
+.env
+venv/
+.venv/
+
+# Databases
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Storage / Indexes (Relative to root)
+receipt_storage/
+policy_indices/
+uploads/
+results.json
+
+# Python cache/logs
+__pycache__/
+*.pyc
+*.log
+
+# OS / IDE specific
+.DS_Store
+.idea/
+.vscode/

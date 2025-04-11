@@ -80,8 +80,8 @@ def display_pdf(file_path):
 
 # --- Main Streamlit App ---
 st.set_page_config(layout="wide")
-st.title("📄 Expense Analyzer v7.16 (Final Syntax Fix)") # Version bump
-st.markdown("Manage policies and analyze receipts.")
+st.title("📄 Expense AI") # Version bump
+st.markdown("Verify that the expenses comply with the company policies using Agentic RAG.")
 init_db()
 
 # --- Initialize Session State ---

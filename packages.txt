@@ -1,2 +1,2 @@
 tesseract-ocr
-tesseract-ocr-eng # Append english language pack
+tesseract-ocr-eng

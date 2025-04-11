@@ -22,12 +22,15 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI
 from langchain_community.vectorstores import FAISS
 
-# --- Manifest Helper Functions ---
+# --- Manifest Helper Functions --- <<< FULL BODIES PRESENT & INDENTED >>>
 def load_manifest():
     """Loads the policy index manifest file."""
     if os.path.exists(config.MANIFEST_FILE):
         try:
-            with open(config.MANIFEST_FILE, 'r') as f: content = f.read(); return json.loads(content) if content else {}
+            with open(config.MANIFEST_FILE, 'r') as f:
+                content = f.read()
+                if not content: return {}
+                return json.loads(content)
         except json.JSONDecodeError: st.warning(f"Manifest file invalid JSON."); return {}
         except Exception as e: st.error(f"Manifest Load Error: {e}"); return {}
     return {}
@@ -35,53 +38,114 @@ def load_manifest():
 def save_manifest(manifest_data):
     """Saves the policy index manifest file."""
     try:
-        with open(config.MANIFEST_FILE, 'w') as f: json.dump(manifest_data, f, indent=4)
-    except Exception as e: st.error(f"Manifest Save Error: {e}")
+        with open(config.MANIFEST_FILE, 'w') as f:
+            json.dump(manifest_data, f, indent=4)
+    except Exception as e:
+        st.error(f"Manifest Save Error: {e}")
+# --- <<< END MANIFEST HELPERS >>> ---
 
-# --- Caching Core Resources ---
+
+# --- Caching Core Resources --- <<< FULL BODIES PRESENT & INDENTED >>>
 @st.cache_resource
 def get_embeddings_model():
     """Loads and caches the embedding model."""
-    try: return HuggingFaceEmbeddings(model_name=config.EMBEDDING_MODEL_NAME)
-    except Exception as e: st.error(f"Embedding Load Error: {e}"); print(f"ERROR embeddings: {e}\n{traceback.format_exc()}"); st.stop()
+    try:
+        return HuggingFaceEmbeddings(model_name=config.EMBEDDING_MODEL_NAME)
+    except Exception as e:
+        st.error(f"Embedding Load Error: {e}")
+        print(f"ERROR embeddings: {e}\n{traceback.format_exc()}")
+        st.stop()
 
 @st.cache_resource
 def get_llm():
     """Loads and caches the LLM."""
-    if not config.OPENAI_API_KEY: st.error("OpenAI API key missing."); st.stop();
-    try: return ChatOpenAI(model_name=config.LLM_MODEL_NAME, temperature=0.0, api_key=config.OPENAI_API_KEY)
-    except Exception as e: st.error(f"LLM Init Error: {e}"); print(f"ERROR LLM: {e}\n{traceback.format_exc()}"); st.stop()
+    if not config.OPENAI_API_KEY:
+        st.error("OpenAI API key missing.")
+        st.stop() # Semicolon removed for standard style
+    try:
+        return ChatOpenAI(model_name=config.LLM_MODEL_NAME, temperature=0.0, api_key=config.OPENAI_API_KEY)
+    except Exception as e:
+        st.error(f"LLM Init Error: {e}")
+        print(f"ERROR LLM: {e}\n{traceback.format_exc()}")
+        st.stop()
+# --- <<< END CACHING RESOURCES >>> ---
 
-# --- Display Logic ---
+
+# --- Display Logic --- <<< FULL BODY PRESENT & INDENTED >>>
 def display_results(results: list):
     """Displays results from the current session."""
-    if results is None: st.info("Waiting for analysis results..."); return
-    if not results: st.info("No new/updated results processed in this batch."); return
+    if results is None:
+        st.info("Waiting for analysis results...")
+        return
+    if not results:
+        st.info("No new/updated results processed in this batch.")
+        return
     st.subheader("Current Batch Analysis Results")
-    if not isinstance(results, list) or (results and not isinstance(results[0], dict)): st.error("Internal Error: Invalid format for results."); print(f"ERROR: Invalid results type: {type(results)}"); return
+    if not isinstance(results, list) or (results and not isinstance(results[0], dict)):
+        st.error("Internal Error: Invalid format for results.")
+        print(f"ERROR: Invalid results type: {type(results)}")
+        return
     try:
         df = pd.DataFrame(results)
         if not df.empty:
-            cols_order = ["Receipt Name", "Merchant Name", "Total Amount", "Status", "Reasoning"]; cols_to_show = [col for col in cols_order if col in df.columns];
-            if cols_to_show: df_display = df[cols_to_show].copy(); st.dataframe(df_display, use_container_width=True)
-            else: st.warning("Batch result structure missing columns."); st.dataframe(df, use_container_width=True)
-        else: st.info("Result list was empty for this batch.")
-    except Exception as e: st.error(f"Error displaying results DF: {e}"); print(f"ERROR creating/displaying results DF: {e}\n{traceback.format_exc()}"); st.write("Raw results:", results)
+            cols_order = ["Receipt Name", "Merchant Name", "Total Amount", "Status", "Reasoning"]
+            cols_to_show = [col for col in cols_order if col in df.columns]
+            if cols_to_show:
+                df_display = df[cols_to_show].copy()
+                st.dataframe(df_display, use_container_width=True)
+            else:
+                st.warning("Batch result structure missing columns.")
+                st.dataframe(df, use_container_width=True)
+        else:
+            st.info("Result list was empty for this batch.")
+    except Exception as e:
+        st.error(f"Error displaying results DF: {e}")
+        print(f"ERROR creating/displaying results DF: {e}\n{traceback.format_exc()}")
+        st.write("Raw results:", results)
+# --- <<< END DISPLAY LOGIC >>> ---
 
-# --- Helper to display PDF ---
+
+# --- Helper to display PDF --- <<< FULL BODY PRESENT & INDENTED >>>
 def display_pdf(file_path):
     """Displays PDF file in Streamlit using Base64 embedding in iframe."""
     try:
-        with open(file_path, "rb") as f: base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" style="height:70vh;" type="application/pdf"></iframe>'
+        with open(file_path, "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" style="height:70vh; border: none;" type="application/pdf"></iframe>'
         st.markdown(pdf_display, unsafe_allow_html=True)
-    except FileNotFoundError: st.error(f"Error: Could not find stored PDF file at {file_path}")
-    except Exception as e: st.error(f"Error displaying PDF: {e}"); st.error(traceback.format_exc())
+    except FileNotFoundError:
+        st.error(f"Error: Could not find stored PDF file at {file_path}")
+    except Exception as e:
+        st.error(f"Error displaying PDF: {e}")
+        st.error(traceback.format_exc())
+# --- <<< END PDF HELPER >>> ---
+
 
 # --- Main Streamlit App ---
-st.set_page_config(layout="wide")
-st.title("📄 Expense AI") # Version bump
-st.markdown("Verify that the expenses comply with the company policies using Agentic RAG.")
+st.set_page_config(layout="wide", page_title="Expense AI", page_icon="💰", initial_sidebar_state="expanded")
+
+# --- Apply Custom CSS ---
+NAVY_BLUE = "#001f3f"; LIGHT_BLUE = "#ADD8E6"; ACCENT_COLOR = "#FF4B4B";
+custom_css = f"""
+@import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700&display=swap');
+html, body, [class*="css"]  {{ font-family: 'Nunito Sans', sans-serif; }}
+h1 {{ font-size: 2.2rem; color: {NAVY_BLUE}; }}
+h2 {{ font-size: 1.7rem; }}
+h3 {{ font-size: 1.3rem; }}
+.stButton>button {{ border-radius: 8px; background-color: {NAVY_BLUE}; color: white; border: none; padding: 8px 20px; font-weight: normal; }} /* Removed bold */
+.stButton>button:hover {{ background-color: #003366; color: white; }}
+.stButton>button:disabled {{ background-color: #cccccc; color: #666666; }}
+[data-testid="stSidebar"] div[data-testid="stButton"] > button {{ border-radius: 8px; }}
+[data-testid="stExpander"] {{ border: 1px solid #cccccc; border-radius: 8px; }}
+[data-testid="stExpander"] summary:hover {{ color: {NAVY_BLUE}; }}
+[data-testid="stMetricLabel"] > div {{ color: #555555; }}
+.ag-header-cell-label {{ font-weight: bold; color: {NAVY_BLUE}; }}
+"""
+st.markdown(f'<style>{custom_css}</style>', unsafe_allow_html=True)
+# --- End Custom CSS ---
+
+st.title("💰 Expense AI")
+st.markdown("✨ Verify that expenses comply with company policies using Agentic RAG ✨")
 init_db()
 
 # --- Initialize Session State ---
@@ -90,6 +154,7 @@ if 'results' not in st.session_state: st.session_state.results = None
 if 'qa_answer' not in st.session_state: st.session_state.qa_answer = ""
 if 'qa_processing' not in st.session_state: st.session_state.qa_processing = False
 if 'qa_target_filename' not in st.session_state: st.session_state.qa_target_filename = None
+if 'status_filter_selection' not in st.session_state: st.session_state.status_filter_selection = []
 
 # --- Load Core Resources ---
 with st.spinner("Loading AI models..."):
@@ -99,38 +164,72 @@ policy_manifest = load_manifest()
 
 # --- Sidebar ---
 st.sidebar.title("🏛️ Policy Management");
-st.sidebar.markdown("Add or update company expense policies."); new_policy_file = st.sidebar.file_uploader("Upload Policy PDF", type=["pdf"], key="policy_manager_uploader"); new_policy_name = st.sidebar.text_input("Policy Name", placeholder="e.g., Global T&E v1.1", key="policy_name_input");
+st.sidebar.markdown("Add or update company expense policies.");
+new_policy_file = st.sidebar.file_uploader("Upload New Policy PDF", type=["pdf"], key="sidebar_policy_uploader");
+new_policy_name = st.sidebar.text_input("Policy Name", placeholder="e.g., Global T&E v1.1", key="sidebar_policy_name");
 if st.sidebar.button("Add Policy & Index", key="add_policy_button", disabled=(not new_policy_file or not new_policy_name)):
     temp_policy_path = os.path.join(config.UPLOAD_FOLDER, new_policy_file.name);
     try:
-        with open(temp_policy_path, "wb") as f: f.write(new_policy_file.getvalue());
-        with st.spinner(f"Processing '{new_policy_name}'..."): success, msg_path = create_and_save_policy_index(temp_policy_path, new_policy_name, embeddings);
-        if success: policy_manifest[new_policy_name] = msg_path; save_manifest(policy_manifest); st.sidebar.success(f"Policy '{new_policy_name}' added!"); st.rerun();
-        else: st.sidebar.error(f"Failed: {msg_path}");
-    except Exception as e: st.sidebar.error(f"Policy Add Error: {e}"); st.sidebar.error(traceback.format_exc())
+        with open(temp_policy_path, "wb") as f:
+            f.write(new_policy_file.getvalue());
+        with st.spinner(f"Processing '{new_policy_name}'..."):
+            success, msg_path = create_and_save_policy_index(temp_policy_path, new_policy_name, embeddings);
+        if success:
+            policy_manifest[new_policy_name] = msg_path;
+            save_manifest(policy_manifest);
+            st.sidebar.success(f"Policy '{new_policy_name}' added!");
+            st.rerun();
+        else:
+            st.sidebar.error(f"Failed: {msg_path}");
+    except Exception as e:
+        st.sidebar.error(f"Policy Add Error: {e}");
+        st.sidebar.error(traceback.format_exc())
     finally:
          if os.path.exists(temp_policy_path):
-             try: os.remove(temp_policy_path)
-             except OSError as e: st.warning(f"Could not remove temp policy file {temp_policy_path}: {e}")
-st.sidebar.markdown("---"); st.sidebar.subheader("Indexed Policies");
-if not policy_manifest: st.sidebar.info("No policies indexed yet.");
+             try:
+                 os.remove(temp_policy_path)
+             except OSError as e:
+                 st.warning(f"Could not remove temp policy file {temp_policy_path}: {e}")
+st.sidebar.markdown("---");
+st.sidebar.subheader("Indexed Policies");
+current_manifest_sidebar = load_manifest()
+if not current_manifest_sidebar:
+    st.sidebar.info("No policies indexed yet.");
 else:
-    for name, path in policy_manifest.items(): st.sidebar.markdown(f"- **{name}** (`{os.path.basename(path) if path and isinstance(path, str) else 'N/A'}`)")
+    for name, path in current_manifest_sidebar.items():
+        st.sidebar.markdown(f"- **{name}** (`{os.path.basename(path) if path and isinstance(path, str) else 'N/A'}`)")
 
 # --- Main Area ---
 st.header("🧾 Receipt Analysis");
-if not policy_manifest: st.warning("Please add a policy via the sidebar.");
+current_manifest_main = load_manifest()
+if not current_manifest_main:
+    st.warning("⚠️ Please add a policy via the sidebar first!");
 else:
-    policy_names = list(policy_manifest.keys());
-    if not policy_names: st.warning("No policies found in manifest.");
+    policy_names = list(current_manifest_main.keys());
+    if not policy_names:
+        st.warning("No policies indexed. Please add one via the sidebar.");
     else:
-        selected_policy_name = st.selectbox("Select Policy:", options=policy_names, index=len(policy_names)-1, key="policy_selector");
-        st.subheader("1. Upload Receipts"); st.caption("Files remain until cleared manually or new files are uploaded.")
-        receipt_files = st.file_uploader("Upload Receipts:", type=["pdf", "txt", "jpg", "jpeg", "png"], accept_multiple_files=True, key="receipt_uploader_main")
-        st.subheader("2. Process Files"); analyze_button_disabled = (not selected_policy_name or not receipt_files); analyze_button = st.button("Analyze Expenses", key="analyze_button_main", disabled=analyze_button_disabled);
+        # ---<<< REVERTED Layout to Vertical Flow >>>---
+        selected_policy_name = st.selectbox(
+            "Select Policy:", options=policy_names, index=len(policy_names)-1, key="policy_selector"
+        );
+
+        st.subheader("1. Upload Receipts");
+        st.caption("Upload Receipts (PDF/TXT/JPG/PNG). Files remain until cleared manually.")
+        receipt_files = st.file_uploader(
+            "Upload:", type=["pdf", "txt", "jpg", "jpeg", "png"], accept_multiple_files=True, key="receipt_uploader_main", label_visibility="collapsed"
+        )
+
+        st.subheader("2. Process Files");
+        analyze_button_disabled = (not selected_policy_name or not receipt_files);
+        # Standard button, no centering, no icon
+        analyze_button = st.button(
+            "Analyze Expenses", key="analyze_button_main", disabled=analyze_button_disabled
+        );
+        # ---<<< END REVERTED Layout >>>---
 
         if analyze_button:
-            st.session_state.results = None; selected_index_path = policy_manifest.get(selected_policy_name);
+            st.session_state.results = None; selected_index_path = current_manifest_main.get(selected_policy_name);
             if not receipt_files: st.warning("No receipts uploaded.");
             elif not selected_index_path or not os.path.exists(selected_index_path): st.error(f"Index path invalid.");
             else:
@@ -145,7 +244,6 @@ else:
                     status_placeholder.success(f"Policy index loaded.")
 
                     status_placeholder.text(f"Analyzing {len(receipt_files)} receipts...")
-                    # Ensure analysis.py is v8.0+ (Multi-Step)
                     results = process_receipts(receipt_files, loaded_policy_index, llm, selected_policy_name)
                     st.session_state.results = results
                     status_placeholder.success(f"Analysis complete.")
@@ -159,16 +257,25 @@ else:
                 st.rerun();
 
 # --- Display Current Batch Results ---
-if st.session_state.results is not None: display_results(st.session_state.results)
+if st.session_state.results is not None:
+    display_results(st.session_state.results)
 
-st.markdown("---")
+st.divider()
 
 # --- Analysis History Section ---
 st.header("📊 Analysis History")
-current_page = st.session_state.get('page_num', 1); offset = (current_page - 1) * config.RESULTS_PER_PAGE
-history_data = get_historical_results(limit=config.RESULTS_PER_PAGE, offset=offset); selected_row_data_from_grid = None
+with st.expander("🔍 Filter & View Options"):
+    status_options = ["Approved", "Rejected", "On Hold", "Error", "Duplicate"];
+    selected_statuses = st.multiselect( "Filter by Status:", options=status_options, default=st.session_state.status_filter_selection, key="status_filter_widget" )
+    if selected_statuses != st.session_state.status_filter_selection: st.session_state.status_filter_selection = selected_statuses; st.session_state.page_num = 1; st.rerun()
 
-if not history_data: st.info("No historical analysis data found.")
+current_page = st.session_state.get('page_num', 1); offset = (current_page - 1) * config.RESULTS_PER_PAGE
+history_data = get_historical_results( limit=config.RESULTS_PER_PAGE, offset=offset, status_filter=st.session_state.status_filter_selection )
+selected_row_data_from_grid = None
+
+if not history_data:
+    if st.session_state.status_filter_selection: st.info(f"No data found matching filter: {', '.join(st.session_state.status_filter_selection)}")
+    else: st.info("No historical analysis data found.")
 else:
     st.write(f"Displaying Page {current_page}...")
     history_df = pd.DataFrame(history_data); display_columns = { "analysis_timestamp": "Date", "receipt_filename": "Receipt Name", "merchant_name": "Merchant", "total_amount": "Amount", "status": "Status", "reasoning": "Reasoning", "stored_file_path": "File Path"};
@@ -184,17 +291,14 @@ else:
 
         # --- AgGrid Configuration ---
         gb = GridOptionsBuilder.from_dataframe(df_for_aggrid)
-        # Configure columns with flex/width
         gb.configure_column("Receipt Name", flex=2, minWidth=150, sortable=True, filterable=True)
         gb.configure_column("Merchant", flex=1, minWidth=120, sortable=True, filterable=True)
         gb.configure_column("Reasoning", flex=3, minWidth=200, sortable=True, filterable=True)
         gb.configure_column("Date", width=110, flex=0, sortable=True, filterable=True)
         gb.configure_column("Amount", width=100, flex=0, sortable=True, filterable=True)
         gb.configure_column("Status", width=100, flex=0, sortable=True, filterable=True)
-        # View Link Renderer
         view_link_renderer = JsCode(""" class LinkCellRenderer { init(params) { this.params = params; this.eGui = document.createElement('div'); this.eGui.innerHTML = `<a href="#" onclick="return false;" style="text-decoration: underline; cursor: pointer;">View</a>`; this.eLink = this.eGui.querySelector('a'); this.linkClickListener = this.linkClickListener.bind(this); this.eLink.addEventListener('click', this.linkClickListener); } linkClickListener(event) { this.params.api.selectIndex(this.params.rowIndex, false, false); } getGui() { return this.eGui; } destroy() { if (this.eLink) { this.eLink.removeEventListener('click', this.linkClickListener); } } } """)
         gb.configure_column("view_action", headerName="Action", cellRenderer=view_link_renderer, width=70, flex=0, minWidth=70, lockPosition='right', suppressMenu=True, filter=False, sortable=False)
-        # Other options
         gb.configure_grid_options(rowHeight=35); gb.configure_selection('single', use_checkbox=False);
         gridOptions = gb.build()
 
@@ -214,7 +318,7 @@ else:
         if st.button("Next ➡️", disabled=(len(history_data) < config.RESULTS_PER_PAGE), key="next_page_hist"): st.session_state.page_num += 1; st.rerun()
     with col2: st.write(f"Page {current_page}")
 
-st.markdown("---")
+st.divider()
 
 # --- Receipt Viewer Section ---
 if selected_row_data_from_grid:
@@ -222,30 +326,23 @@ if selected_row_data_from_grid:
     if not selected_filename: st.error("Could not determine filename from selected row.")
     else:
         st.header(f"📄 Viewing: {selected_filename}")
-        receipt_data = get_result_by_filename(selected_filename) # Fetch full data
+        receipt_data = get_result_by_filename(selected_filename)
         if not receipt_data: st.error(f"Could not retrieve full data for {selected_filename}.")
         else:
             stored_path = receipt_data.get("stored_file_path"); policy_name_used = receipt_data.get("policy_name_used", None); file_ext = os.path.splitext(stored_path)[1].lower() if stored_path and isinstance(stored_path, str) else None
             col_view1, col_view2 = st.columns([1, 1])
             with col_view1: # File Viewer
                 st.subheader("Original File");
-                # ---<<< CORRECTED ELIF SYNTAX >>>---
-                if not stored_path:
-                     st.warning("File path not found in record.") # Changed message
-                elif not os.path.exists(stored_path): # Corrected indentation
-                     st.error(f"Stored file not found at path: {stored_path}")
-                elif file_ext == ".pdf": # Corrected indentation
-                     display_pdf(stored_path)
-                elif file_ext in [".jpg", ".jpeg", ".png"]: # Corrected indentation
-                     st.image(stored_path)
-                elif file_ext == ".txt": # Corrected indentation
+                if not stored_path: st.warning("File path not found.");
+                elif not os.path.exists(stored_path): st.error(f"Stored file not found: {stored_path}")
+                elif file_ext == ".pdf": display_pdf(stored_path)
+                elif file_ext in [".jpg", ".jpeg", ".png"]: st.image(stored_path)
+                elif file_ext == ".txt":
                      try:
                          with open(stored_path, 'r', encoding='utf-8') as f: txt_content = f.read()
                          st.text_area("TXT Content", txt_content, height=500)
                      except Exception as e: st.error(f"Could not read TXT {stored_path}: {e}")
-                else: # Corrected indentation
-                     st.warning(f"Cannot display type: {file_ext}.")
-                 # ---<<< END CORRECTION >>>---
+                else: st.warning(f"Cannot display type: {file_ext}.")
             with col_view2: # Analysis Details + Q&A
                 st.subheader("Analysis Details");
                 ts = pd.to_datetime(receipt_data.get("analysis_timestamp")).strftime('%Y-%m-%d %H:%M:%S') if receipt_data.get("analysis_timestamp") else "N/A"; st.info(f"Analyzed on: {ts}"); st.info(f"Policy Used: {policy_name_used}")
@@ -262,7 +359,7 @@ if selected_row_data_from_grid:
                 if st.button("Ask AI Assistant", key=f"ask_btn_{selected_filename}"):
                     current_input_value = st.session_state.get(q_key, "")
                     if current_input_value: st.session_state.qa_processing = True; st.session_state.qa_answer = "Thinking..."; st.rerun();
-                    else: st.session_state.qa_answer = "Please enter question."; st.session_state.qa_processing = False; # Maybe rerun here too
+                    else: st.session_state.qa_answer = "Please enter question."; st.session_state.qa_processing = False;
                 if st.session_state.qa_processing and st.session_state.qa_target_filename == selected_filename:
                     answer = "Error during Q&A."; current_question_to_process = st.session_state.get(q_key, "")
                     if current_question_to_process and policy_name_used and policy_manifest.get(policy_name_used):
@@ -282,8 +379,7 @@ if selected_row_data_from_grid:
                     if st.session_state.qa_answer == "Thinking...": st.info("Thinking...")
                     elif "Error" in st.session_state.qa_answer or "Please enter" in st.session_state.qa_answer: st.warning(st.session_state.qa_answer)
                     else: st.markdown("**Answer:**"); st.success(st.session_state.qa_answer)
-                # --- END Q&A Integration ---
 
 # --- Footer ---
-st.markdown("---")
-st.markdown("Analyzer v7.16 - Final Syntax Fix")
+st.divider()
+st.caption("Expense AI v1.2 - Custom Styling & Q&A") # Consistent Footer
